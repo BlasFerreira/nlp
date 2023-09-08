@@ -9,6 +9,12 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
+from transformers import AutoTokenizer,BertTokenizer,AutoModelForSeq2SeqLM, BertForTokenClassification
+
+from transformers import pipeline 
+import pandas as pd
+from tqdm import tqdm
+import spacy
 # Descargar los recursos necesarios
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
@@ -17,9 +23,34 @@ nltk.download('words')
 # Descargar recursos necesarios
 nltk.download('punkt')
 nltk.download('stopwords')
-import pandas as pd
-from tqdm import tqdm
-import spacy
+
+
+def presentation(text_result):
+
+	# Title
+	st.title("NLP Entity Recognition and Summarization")
+
+	## Subtitle
+	st.header("Using NLTK, spaCy, and Hugging Face")
+
+	# Introduction
+	st.write("In today's information-rich landscape, online magazines provide a wealth of knowledge and trends, but the sheer volume can be overwhelming. This project uses NLTK, spaCy, and Hugging Face to perform entity recognition and automatic summarization of online magazine articles, simplifying complex content.")
+
+	## Objectives
+	st.subheader("Objectives:")
+	st.write("1. **Data Extraction:** We scrape article contents, including titles and metadata.")
+	st.write("2. **Text Preprocessing:** Prepare the data with tokenization and cleaning.")
+	st.write("3. **Entity Recognition:** Identify names, locations, and organizations.")
+	st.write("4. **Automatic Summarization:** These tools create concise summaries for easier comprehension.")
+
+	## Benefits
+	st.subheader("Benefits:")
+	st.write("By leveraging NLTK, spaCy, and Hugging Face, we enhance article analysis, extract key entities, and simplify complex content for informed decision-making.")
+
+	# Conclusion
+	st.subheader("Conclusion:")
+	st.write("Through entity recognition and summarization, NLTK, spaCy, and Hugging Face streamline understanding and knowledge dissemination from online magazine articles, empowering efficient research.")
+
 
 # scrapy
 def scrapy():
@@ -62,9 +93,10 @@ def scrapy():
 	paragraphs = paragraphs[:-3]
 
 
-	return '\n'.join( paragraphs)
+	return paragraphs
 
 
+@st.cache_data()
 def reconocedor_de_entidades(texto):
     # Tokenización
     palabras = word_tokenize(texto)
@@ -84,10 +116,6 @@ def reconocedor_de_entidades(texto):
             entidades.append((entidad, etiqueta))
 
     return entidades
-
-
-
-
 
 
 def extract_entity(text_list):
@@ -131,72 +159,203 @@ def summarize(text, num_of_sentences=5):
     return ' '.join(summary_sentences)
 
 
+@st.cache_data()
+def download_bert() :
+	model_bert_large_name  = "dbmdz/bert-large-cased-finetuned-conll03-english"
+
+	model_model_bert_large = BertForTokenClassification.from_pretrained(model_bert_large_name )
+	tokenizer_bert_large   = BertTokenizer.from_pretrained(model_bert_large_name )
+	nlp_ner = pipeline("ner", model=model_model_bert_large, aggregation_strategy="simple", tokenizer = tokenizer_bert_large)
+
+	return nlp_ner
+
+
+@st.cache_data()
+def entity_spacy(text_input) :
+
+	st.subheader("Entity Recognition")
+
+	# Carga el modelo en inglés
+	nlp = spacy.load("en_core_web_sm")
+	doc = nlp(text_input)
+
+	# Extrae y muestra las entidades nombradas
+	entities = []
+	for ent in doc.ents:
+	    entities.append((ent.text, ent.label_))
+
+	return entities
+
+
+
+
+def summarize_spacy(text, num_sentences=5):
+	st.subheader("Spacy - Summarization of Magazine Articles: Unveiling Insights with Spacy")
+	# Carga el modelo en inglés de spaCy
+	nlp = spacy.load("en_core_web_sm")
+	# Divide el texto en oraciones
+	doc = nlp(text)
+	sentences = [sent.text.strip() for sent in doc.sents]
+
+	# Si el número de oraciones es menor o igual al número deseado de oraciones, devuelve el texto original
+	if len(sentences) <= num_sentences:
+		return text
+
+	# Calcula la matriz TF-IDF para las oraciones
+	vectorizer = TfidfVectorizer().fit_transform(sentences)
+	vectors = vectorizer.toarray()
+
+	# Calcula la similitud de términos para cada oración y ordena las oraciones por importancia
+	rankings = np.argsort(np.sum(vectors, axis=1))[::-1]
+
+	# Selecciona las oraciones más importantes
+	top_sentences = [sentences[rank] for rank in rankings[:num_sentences]]
+
+	# Ordena las oraciones seleccionadas en el orden en que aparecen en el texto original y las devuelve
+	st.write(' '.join(sorted(top_sentences, key=sentences.index)))
+
+
+def block_text(text_input):
+
+	texto_con_enlace = "¡Extract the content of this post with scrapy > [I want to open a window in their souls’: Haruki Murakami on the power of writing simply](https://www.theguardian.com/books/2022/nov/05/i-want-to-open-a-window-in-their-souls-haruki-murakami-on-the-power-of-writing-simply)"
+	st.markdown(texto_con_enlace)
+	st.text_area("Text:", value = text_input, height = 200 )
+
+@st.cache_data()
+def extract_entity(text_list):
+	st.markdown(" [Analysis with Hugging Face in this link (COLAB)](https://colab.research.google.com/drive/1J6R20SSRdx9y8GMyiayYlaMnrQVBOvaa#scrollTo=RviFJwTTVid7)")
+
+	nlp_ner= download_bert()
+	# A NER pipeline is set up, and entities from text_list are added to the entities list.
+	entities = []
+	st.write('Extracting entities...')
+	progress_bar = st.progress(0)
+	for i, paragraphh in enumerate(text_list):
+	    entity = nlp_ner(paragraphh)
+	    entities.extend(entity)
+	    
+	    # Actualizar la barra de progreso
+	    progress_bar.progress((i + 1) / len(text_list))
+
+
+	# Delete duplicates
+	seen_words = set()
+	unique_entities = [entry for entry in entities if entry['word'] not in seen_words and not seen_words.add(entry['word'])]
+
+
+	return unique_entities
+
+
+
+def chunks_creator(tokenizer,FileContent, max_len ) :
+
+  # extract the sentences from the document
+  sentences = nltk.tokenize.sent_tokenize(FileContent)
+
+  # Create the chunks
+  # initialize
+  length = 0
+  chunk = ""
+  chunks = []
+  count = -1
+  for sentence in sentences:
+    count += 1
+    combined_length = len(tokenizer.tokenize(sentence)) + length # add the no. of sentence tokens to the length counter
+
+    if combined_length  <= max_len : # if it doesn't exceed
+      chunk += sentence + " " # add the sentence to the chunk
+      length = combined_length # update the length counter
+
+      # if it is the last sentence
+      if count == len(sentences) - 1:
+        chunks.append(chunk.strip()) # save the chunk
+
+    else:
+      chunks.append(chunk.strip()) # save the chunk
+
+      # reset
+      length = 0
+      chunk = ""
+
+      # take care of the overflow sentence
+      chunk += sentence + " "
+      length = len(tokenizer.tokenize(sentence))
+  print(f'the function return : {len(chunks)} chunks.\n')
+
+  # I divide the text into 4 chunks to be processed by the model
+  print([len(tokenizer.tokenize(c)) for c in chunks ])
+
+  return chunks
+
+
+@st.cache_data()
+def distilbart_download():
+	# Load a pretrained model and tokenizer designed for summarization
+	checkpoint_summ = "sshleifer/distilbart-cnn-12-6"
+	# Cargar el modelo y el tokenizador
+	tokenizer  = AutoTokenizer.from_pretrained(checkpoint_summ)
+	model  = AutoModelForSeq2SeqLM.from_pretrained(checkpoint_summ)
+
+	return tokenizer, model 
+
+
+def summarize_hf(text_input): 
+
+	tokenizer_summ,model_summ  = distilbart_download()
+
+	# I call the chunks_creator() to create chunks
+	chunks_summ = chunks_creator( tokenizer_summ , '\n'.join(text_input), 1022 )
+
+	# Convert chunks into inputs for the model
+	inputs_summ = [tokenizer_summ(chunk, return_tensors="pt") for chunk in chunks_summ]
+
+
+
+	# Use the model to generate summaries for each chunk and display them
+	# Here is where we make the change, using max_new_tokens instead of max_length
+	summary = []
+	for input in inputs_summ:
+	    output_summary = model_summ.generate(**input, max_new_tokens=1022)
+	    summary.append(tokenizer_summ.decode(*output_summary, skip_special_tokens=True))
+
+	return summary
+
 
 
 if __name__=='__main__':
 
+	st.set_page_config(page_title="Blas", 
+	                   page_icon=":robot_face:",
+	                   layout="wide",
+	                   initial_sidebar_state="expanded"
+	                   )
+
+
+	st.sidebar.header('Hi, Select tools')
+	nav = st.sidebar.radio('',['Go to homepage', 'NLTK','spaCy', 'Hugging Face'])
+	st.sidebar.write('')
+	st.sidebar.write('')
+	st.sidebar.write('')
+	st.sidebar.write('')
+	st.sidebar.write('')
+
+
 	text = scrapy()
 
-	# Título de la página
-	st.title("NLP Entity Recognition and Summarization of Magazine Articles using NLTK, spaCy, and Hugging Face.")
+	if nav == 'Go to homepage':
+		presentation(text)
+		block_text(text)
 
-	introduction = """
+	if nav == 'NLTK':
+		st.title("NLTK (Natural Language Toolkit) ")   
+		block_text(text)
+		# nltk_analysis(text)
+		entidades_reconocidas = reconocedor_de_entidades(' '.join(text))
 
-	**Introduction:**
-
-	In today's information-rich landscape, magazines and online publications are abundant sources of knowledge and trends. However, the sheer volume of data can be overwhelming. This is where Natural Language Processing (NLP) comes into play, a field of artificial intelligence focused on enabling computers to understand and process human language.
-
-	This project revolves around the combined application of NLTK (Natural Language Toolkit), spaCy, and Hugging Face to perform entity recognition and automatic summarization of articles from an online magazine. These libraries offer advanced tools and techniques for processing, analyzing, and deriving insights from textual data.
-
-	**Objectives:**
-
-	1. **Data Extraction:** The first step involves utilizing web scraping techniques to extract article contents from the online magazine. This includes capturing titles, content, and relevant metadata.
-
-	2. **Text Preprocessing:** Before analysis, data must be cleaned and prepared. NLTK, spaCy, and Hugging Face offer functionalities for tasks like tokenization, stemming, stopwords removal, and more, ensuring the text is in a suitable format for analysis.
-
-	3. **Entity Recognition:** Both NLTK and spaCy provide named entity recognition capabilities to identify specific names, locations, and organizations mentioned in the text. This helps extract key entities that play a significant role in the articles.
-
-	4. **Automatic Summarization:** NLTK, spaCy, and Hugging Face's summarization tools assist in distilling key ideas from articles, generating coherent and concise summaries. This simplifies the comprehension of extensive textual content.
-
-	**Benefits:**
-
-	Applying NLTK's, spaCy's, and Hugging Face's entity recognition and summarization capabilities to magazine articles provides valuable insights. By extracting key entities and generating summaries, articles' core information becomes easily accessible, aiding in efficient analysis and understanding.
-
-	**Conclusion:**
-
-	Leveraging the combined prowess of NLTK, spaCy, and Hugging Face in entity recognition and automatic summarization empowers researchers to unlock essential insights from online magazine articles. Through data extraction, preprocessing, entity recognition, and summarization, these libraries streamline the process of understanding and summarizing extensive textual content, thereby facilitating informed decision-making and knowledge dissemination.
-	"""
-
-
-
-	# Mostrar la introducción en Streamlit
-	st.markdown(introduction)
-
-	texto_con_enlace = "¡Extract the content of this post with scrapy > [I want to open a window in their souls’: Haruki Murakami on the power of writing simply](https://www.theguardian.com/books/2022/nov/05/i-want-to-open-a-window-in-their-souls-haruki-murakami-on-the-power-of-writing-simply)"
-	st.markdown(texto_con_enlace)
-	st.text_area("Text:", value = text, height = 300 )
-	
-	# ENTITY RECOGNITION
-
-
-	# Título de la página
-	st.title("Entity Recognition with NLP Libraries")
-
-	selected_library = st.selectbox("Select the library to do entity recognition and summary ", ["NLTK", "spaCy","Hugging Face"],index=0)
-
-
-	if selected_library == "NLTK":
-		st.write("NLTK (Natural Language Toolkit) is a comprehensive library for natural language processing.")
-
-
-		entidades_reconocidas = reconocedor_de_entidades(text)
-
-		st.subheader("Entities")
+		st.subheader("Entity Recognition")
 
 		for ent in set(entidades_reconocidas):
 			st.write(f'**Entity:** {ent[0]} **Label: {ent[1]}**')
-
-
 
 		# Diccionario de descripciones de etiquetas
 		label_descriptions = {
@@ -217,33 +376,15 @@ if __name__=='__main__':
 
 		st.subheader("NLP - Summarization of Magazine Articles: Unveiling Insights with NLTK")
 
+		st.write(summarize(' '.join(text) ))
 
-		st.write(summarize(text))
 
+	if nav == 'spaCy':   
+		st.title("spaCy")
+		block_text(text)
+		entities_spacy = entity_spacy(' '.join(text))
 
-	elif selected_library == "spaCy":
-		st.write("spaCy is a modern NLP library that excels in processing large volumes of text efficiently.")
-
-		# Carga el modelo en inglés
-		nlp = spacy.load("en_core_web_sm")
-
-		st.title("SPACY")
-		def extract_named_entities(text):
-		    # Procesa el texto con spaCy
-		    doc = nlp(text)
-
-		    # Extrae y muestra las entidades nombradas
-		    entities = []
-		    for ent in doc.ents:
-		        entities.append((ent.text, ent.label_))
-
-		    return entities
-
-		# Ejemplo de uso
-
-		entitis = extract_named_entities(text)
-
-		for ent in set(entitis):
+		for ent in set(entities_spacy):
 			st.write(f'**Entity:** {ent[0]} **Label: {ent[1]}**')
 
 		# Title
@@ -268,39 +409,20 @@ if __name__=='__main__':
 
 
 
+		summarize_spacy(' '.join(text), num_sentences=5)
 
-		st.subheader("NLP - Summarization of Magazine Articles: Unveiling Insights with Spacy")
-		# Carga el modelo en inglés de spaCy
-		nlp = spacy.load("en_core_web_sm")
-
-		def summarize_spacy(text, num_sentences=5):
-			# Divide el texto en oraciones
-			doc = nlp(text)
-			sentences = [sent.text.strip() for sent in doc.sents]
-
-			# Si el número de oraciones es menor o igual al número deseado de oraciones, devuelve el texto original
-			if len(sentences) <= num_sentences:
-				return text
-
-			# Calcula la matriz TF-IDF para las oraciones
-			vectorizer = TfidfVectorizer().fit_transform(sentences)
-			vectors = vectorizer.toarray()
-
-			# Calcula la similitud de términos para cada oración y ordena las oraciones por importancia
-			rankings = np.argsort(np.sum(vectors, axis=1))[::-1]
-
-			# Selecciona las oraciones más importantes
-			top_sentences = [sentences[rank] for rank in rankings[:num_sentences]]
-
-			# Ordena las oraciones seleccionadas en el orden en que aparecen en el texto original y las devuelve
-			return ' '.join(sorted(top_sentences, key=sentences.index))
+	if nav == 'Hugging Face':  
+		st.title("Hugging Face")
+		block_text(text)
+		entities_hf = extract_entity(text)
 
 
-		st.write(summarize_spacy(text))
+		for entity_i in entities_hf :
+		    st.write(f" Entity: {entity_i['word']}, Label: {entity_i['entity_group']}\n")   
 
-	elif selected_library ==  "Hugging Face" :
-	
-		st.markdown(" [Analysis with Hugging Face in this link (COLAB)](https://colab.research.google.com/drive/1J6R20SSRdx9y8GMyiayYlaMnrQVBOvaa#scrollTo=RviFJwTTVid7)")
+		st.subheader(" \n Hugging Face - Summarization of Magazine Articles: Unveiling Insights with Hugging Face \n")
+		summary_hf = summarize_hf(text)
 
 
+		st.write('\n'.join(summary_hf))
 
