@@ -96,7 +96,7 @@ def scrapy():
 	return paragraphs
 
 
-@st.cache_data()
+# @st.cache_data()
 def reconocedor_de_entidades(texto):
     # Tokenización
     palabras = word_tokenize(texto)
@@ -170,7 +170,7 @@ def download_bert() :
 	return nlp_ner
 
 
-@st.cache_data()
+# @st.cache_data()
 def entity_spacy(text_input) :
 
 	st.subheader("Entity Recognition")
@@ -288,7 +288,7 @@ def chunks_creator(tokenizer,FileContent, max_len ) :
   return chunks
 
 
-@st.cache_data()
+# @st.cache_data()
 def distilbart_download():
 	# Load a pretrained model and tokenizer designed for summarization
 	checkpoint_summ = "sshleifer/distilbart-cnn-12-6"
