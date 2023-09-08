@@ -159,7 +159,7 @@ def summarize(text, num_of_sentences=5):
     return ' '.join(summary_sentences)
 
 
-@st.cache_data()
+# @st.cache_data()
 def download_bert() :
 	model_bert_large_name  = "dbmdz/bert-large-cased-finetuned-conll03-english"
 
@@ -221,7 +221,7 @@ def block_text(text_input):
 	st.markdown(texto_con_enlace)
 	st.text_area("Text:", value = text_input, height = 200 )
 
-@st.cache_data()
+# @st.cache_data()
 def extract_entity(text_list):
 	st.markdown(" [Analysis with Hugging Face in this link (COLAB)](https://colab.research.google.com/drive/1J6R20SSRdx9y8GMyiayYlaMnrQVBOvaa#scrollTo=RviFJwTTVid7)")
 
