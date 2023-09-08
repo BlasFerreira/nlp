@@ -420,9 +420,9 @@ if __name__=='__main__':
 		for entity_i in entities_hf :
 		    st.write(f" Entity: {entity_i['word']}, Label: {entity_i['entity_group']}\n")   
 
-		# st.subheader(" \n Hugging Face - Summarization of Magazine Articles: Unveiling Insights with Hugging Face \n")
-		# summary_hf = summarize_hf(text)
+		st.subheader(" \n Hugging Face - Summarization of Magazine Articles: Unveiling Insights with Hugging Face \n")
+		summary_hf = summarize_hf(text)
 
 
-		# st.write('\n'.join(summary_hf))
+		st.write('\n'.join(summary_hf))
 
