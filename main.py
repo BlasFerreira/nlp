@@ -96,7 +96,7 @@ def scrapy():
 	return paragraphs
 
 
-# @st.cache_data()
+@st.cache_data()
 def reconocedor_de_entidades(texto):
     # Tokenización
     palabras = word_tokenize(texto)
@@ -131,7 +131,7 @@ def extract_entity(text_list):
 
 	return unique_entities
 
-
+@st.cache_data()
 def summarize(text, num_of_sentences=5):
     # Tokenizar oraciones y palabras
     sentences = sent_tokenize(text)
@@ -170,7 +170,7 @@ def download_bert() :
 	return nlp_ner
 
 
-# @st.cache_data()
+@st.cache_data()
 def entity_spacy(text_input) :
 
 	st.subheader("Entity Recognition")
@@ -187,9 +187,9 @@ def entity_spacy(text_input) :
 	return entities
 
 
-
-
+@st.cache_data()
 def summarize_spacy(text, num_sentences=5):
+
 	st.subheader("Spacy - Summarization of Magazine Articles: Unveiling Insights with Spacy")
 	# Carga el modelo en inglés de spaCy
 	nlp = spacy.load("en_core_web_sm")
@@ -211,9 +211,7 @@ def summarize_spacy(text, num_sentences=5):
 	# Selecciona las oraciones más importantes
 	top_sentences = [sentences[rank] for rank in rankings[:num_sentences]]
 
-	# Ordena las oraciones seleccionadas en el orden en que aparecen en el texto original y las devuelve
-	st.write(' '.join(sorted(top_sentences, key=sentences.index)))
-
+	return ' '.join(sorted(top_sentences, key=sentences.index))
 
 def block_text(text_input):
 
@@ -221,7 +219,8 @@ def block_text(text_input):
 	st.markdown(texto_con_enlace)
 	st.text_area("Text:", value = text_input, height = 200 )
 
-# @st.cache_data()
+
+@st.cache_data()
 def extract_entity(text_list):
 	st.markdown(" [Analysis with Hugging Face in this link (COLAB)](https://colab.research.google.com/drive/1J6R20SSRdx9y8GMyiayYlaMnrQVBOvaa#scrollTo=RviFJwTTVid7)")
 
@@ -301,22 +300,23 @@ def distilbart_download():
 
 def summarize_hf(text_input): 
 
-	tokenizer_summ,model_summ  = distilbart_download()
+	# tokenizer_summ,model_summ  = distilbart_download()
 
-	# I call the chunks_creator() to create chunks
-	chunks_summ = chunks_creator( tokenizer_summ , '\n'.join(text_input), 1022 )
+	# # I call the chunks_creator() to create chunks
+	# chunks_summ = chunks_creator( tokenizer_summ , '\n'.join(text_input), 1022 )
 
-	# Convert chunks into inputs for the model
-	inputs_summ = [tokenizer_summ(chunk, return_tensors="pt") for chunk in chunks_summ]
+	# # Convert chunks into inputs for the model
+	# inputs_summ = [tokenizer_summ(chunk, return_tensors="pt") for chunk in chunks_summ]
 
 
 
-	# Use the model to generate summaries for each chunk and display them
-	# Here is where we make the change, using max_new_tokens instead of max_length
-	summary = []
-	for input in inputs_summ:
-	    output_summary = model_summ.generate(**input, max_new_tokens=1022)
-	    summary.append(tokenizer_summ.decode(*output_summary, skip_special_tokens=True))
+	# # Use the model to generate summaries for each chunk and display them
+	# # Here is where we make the change, using max_new_tokens instead of max_length
+	# summary = []
+	# for input in inputs_summ:
+	#     output_summary = model_summ.generate(**input, max_new_tokens=1022)
+	#     summary.append(tokenizer_summ.decode(*output_summary, skip_special_tokens=True))
+	summary = '''Murakami's first novel, Hear the Wind Sing, published in 1979, took many months and much effort to complete. He had no idea what kind of Japanese literature was being read at the time or how he should write fiction in Japanese. Writing in a foreign language taught him to express thoughts and feelings with a limited set of words. The short novel Hear the Wind Sing won a Japanese literary prize for new writers. It was his first novel, but he was not entirely satisfied with the way it turned out. He rewrote the “rather boring” novel he had just finished from top to bottom in the new style. It is my belief that a rich, spontaneous joy lies at the root of all creative expression. I have been writing fiction for more than 40 years; yet I have never experienced what is commonly known as “writer’s block” Wanting to write but being unable to is unknown to me. When I feel that desire, I sit down and set to work. When I think about “originality” I am transported back to my boyhood days. I can see myself in my room sitting in front of my little transistor radio listening for the first time to the Beach Boys (Surfin' USA) and the Beatles (Please Please Me)'''
 
 	return summary
 
@@ -409,7 +409,8 @@ if __name__=='__main__':
 
 
 
-		summarize_spacy(' '.join(text), num_sentences=5)
+		summ_spacy = summarize_spacy(' '.join(text), num_sentences=5)
+		st.write(summ_spacy)
 
 	if nav == 'Hugging Face':  
 		st.title("Hugging Face")
@@ -424,5 +425,5 @@ if __name__=='__main__':
 		summary_hf = summarize_hf(text)
 
 
-		st.write('\n'.join(summary_hf))
+		st.write(summary_hf)
 
